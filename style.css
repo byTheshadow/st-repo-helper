@@ -1,0 +1,278 @@
+/* ============================================================
+   ST Repo 小助手 — style.css
+   ============================================================ */
+
+/* ── 面板容器 ─────────────────────────────────────────────── */
+#repo-helper-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--SmartThemeBodyColor, #ccc);
+}
+
+/* ── 区块 ────────────────────────────────────────────────── */
+.repo-section {
+  background: var(--SmartThemeBlurTintColor, rgba(255,255,255,0.05));
+  border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.1));
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repo-section-header {
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--SmartThemeBodyColor, #aaa);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-transform: uppercase;
+}
+
+/* ── 已选列表 ────────────────────────────────────────────── */
+.repo-empty-hint {
+  color: var(--SmartThemeBodyColor, #666);
+  opacity: 0.5;
+  font-size: 12px;
+  text-align: center;
+  padding: 6px 0;
+}
+
+.repo-selected-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  font-size: 12px;
+}
+
+.repo-item-role {
+  font-weight: 600;
+  color: var(--SmartThemeQuoteColor, #a78bfa);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.repo-item-preview {
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.repo-item-remove {
+  background: none;
+  border: none;
+  color: #f87171;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  flex-shrink: 0;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.repo-item-remove:hover { opacity: 1; }
+
+/* ── 打码标签 ────────────────────────────────────────────── */
+#repo-redact-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.repo-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: rgba(167,139,250,0.15);
+  border: 1px solid rgba(167,139,250,0.3);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: #a78bfa;
+}
+
+.repo-tag-remove {
+  background: none;
+  border: none;
+  color: #f87171;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+
+/* ── 输入控件 ────────────────────────────────────────────── */
+.repo-row {
+  display: flex;
+  gap: 6px;
+}
+
+#repo-redact-input,
+#repo-comment {
+  width: 100%;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--SmartThemeBorderColor, rgba(255,255,255,0.15));
+  border-radius: 6px;
+  color: var(--SmartThemeBodyColor, #ccc);
+  padding: 6px 8px;
+  font-size: 12px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+#repo-redact-input:focus,
+#repo-comment:focus {
+  outline: none;
+  border-color: #a78bfa;
+}
+
+/* ── 单选组 ─────────────────────────────────────────────── */
+.repo-radio-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.repo-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* ── checkbox ────────────────────────────────────────────── */
+.repo-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+/* ── 按钮 ────────────────────────────────────────────────── */
+.repo-btn-small {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 5px;
+  color: var(--SmartThemeBodyColor, #ccc);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.repo-btn-small:hover {
+  background: rgba(255,255,255,0.13);
+}
+
+.repo-btn-primary {
+  width: 100%;
+  padding: 8px;
+  background: linear-gradient(135deg, #a78bfa, #ec4899);
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s;
+  letter-spacing: 0.03em;
+}
+
+.repo-btn-primary:hover { opacity: 0.9; }
+.repo-btn-primary:active { transform: scale(0.98); }
+
+/* ── 主题切换按钮 ────────────────────────────────────────── */
+.repo-section-footer {
+  gap: 10px;
+}
+
+.repo-theme-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.repo-theme-btn {
+  flex: 1;
+  padding: 5px 4px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: var(--SmartThemeBodyColor, #ccc);
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+
+.repo-theme-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.repo-theme-btn.active {
+  background: rgba(167,139,250,0.2);
+  border-color: #a78bfa;
+  color: #a78bfa;
+  font-weight: 600;
+}
+
+/* ── 消息选取按钮（注入到 .mes 里）────────────────────────── */
+.mes {
+  position: relative;
+}
+
+.repo-select-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid rgba(167,139,250,0.6);
+  background: rgba(20, 16, 35, 0.75);
+  color: #a78bfa;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s, transform 0.15s;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+}
+
+/* 悬停消息时显示按钮 */
+.mes:hover .repo-select-btn {
+  opacity: 1;
+}
+
+/* 已选中状态始终显示 */
+.mes.repo-selected .repo-select-btn {
+  opacity: 1;
+  background: rgba(167,139,250,0.85);
+  color: #fff;
+  border-color: #a78bfa;
+}
+
+/* 消息选中高亮 */
+.mes.repo-selected {
+  outline: 2px solid rgba(167,139,250,0.5);
+  outline-offset: 2px;
+  border-radius: 8px;
+}

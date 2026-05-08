@@ -1,316 +1,515 @@
-// ============================================================
-//  ST Repo 小助手 — index.js
-//  阶段一：基础骨架 + 插件面板 + 消息选取
-// ============================================================
+/*
+ * ============================================
+ *  ST Repo 小助手 — index.js
+ *  Author: shadow
+ *  Version: 1.0.0
+ * ============================================
+ */
 
 (function () {
-  'use strict';
+  "use strict";
 
-  // ── 状态 ────────────────────────────────────────────────
-  const state = {
-    selectedMessages: [], // { id, role, name, content, element }
-    redactWords: [],
-    redactStyle: 'block', // 'block' | 'star' | 'blur'
+  // ============ 全局状态 ============
+  const STATE = {
+    selectedMessages: [],    // { mesId, role, text, element }
+    customRedactWords: [],
     autoRedact: true,
-    comment: '',
-    theme: 'pink', // 'pink' | 'cyber' | 'paper'
+    redactStyle: "block",    // block | star | blur
+    comment: "",
+    theme: "pink",
+    bgUrl: "",
   };
 
-  // ── 面板 HTML ────────────────────────────────────────────
-  const PANEL_HTML = `
-<div id="repo-helper-panel">
-  <div class="repo-section">
-    <div class="repo-section-header">
-      <span>已选楼层 <span id="repo-count">0</span></span>
-      <button id="repo-clear-btn" class="repo-btn-small">清空</button>
-    </div>
-    <div id="repo-selected-list">
-      <div class="repo-empty-hint">悬停消息，点击 ＋ 选取楼层</div>
-    </div>
-  </div>
-
-  <div class="repo-section">
-    <div class="repo-section-header">打码设置</div>
-    <label class="repo-checkbox-label">
-      <input type="checkbox" id="repo-auto-redact" checked />
-      自动打码 {{user}} 名字
-    </label>
-    <div class="repo-row">
-      <input type="text" id="repo-redact-input" placeholder="自定义打码词" />
-      <button id="repo-redact-add" class="repo-btn-small">＋ 添加</button>
-    </div>
-    <div id="repo-redact-tags"></div>
-    <div class="repo-radio-group">
-      <label><input type="radio" name="redact-style" value="block" checked /> 黑块 ████</label>
-      <label><input type="radio" name="redact-style" value="star" /> 星号 ***</label>
-      <label><input type="radio" name="redact-style" value="blur" /> 模糊</label>
-    </div>
-  </div>
-
-  <div class="repo-section">
-    <div class="repo-section-header">我的评论</div>
-    <textarea id="repo-comment" placeholder="写下你的 repo 评论…" rows="3"></textarea>
-  </div>
-
-  <div class="repo-section repo-section-footer">
-    <div class="repo-theme-btns">
-      <button class="repo-theme-btn active" data-theme="pink">🌸 粉嫩</button>
-      <button class="repo-theme-btn" data-theme="cyber">🌃 赛博</button>
-      <button class="repo-theme-btn" data-theme="paper">📄 简约</button>
-    </div>
-    <button id="repo-export-btn" class="repo-btn-primary">导出图片 ↓</button>
-  </div>
-</div>
-`;
-
-  // ── 注入面板 ─────────────────────────────────────────────
-  function initPanel() {
-    // ST 的插件面板挂载点
-    const $settingsContainer = $('#extensions_settings');
-    if (!$settingsContainer.length) {
-      console.warn('[Repo小助手] 找不到 #extensions_settings，延迟重试');
-      setTimeout(initPanel, 1000);
-      return;
+  // ============ 工具函数 ============
+  const getUserName = () => {
+    try {
+      return window.name1 || "用户";
+    } catch {
+      return "用户";
     }
+  };
 
-    // 避免重复注入
-    if ($('#repo-helper-panel').length) return;
+  const truncateText = (text, maxLen = 50) => {
+    if (!text) return "";
+    const clean = text.replace(/\n/g, " ").trim();
+    return clean.length > maxLen ? clean.slice(0, maxLen) + "…" : clean;
+  };
 
-    $settingsContainer.append(PANEL_HTML);
-    bindPanelEvents();
-    console.log('[Repo小助手] 面板已加载 ✓');
-  }
+  const getMessageId = (mesEl) => {
+    return mesEl.getAttribute("mesid") || mesEl.getAttribute("data-mesid") || "";
+  };
 
-  // ── 绑定面板事件 ─────────────────────────────────────────
-  function bindPanelEvents() {
-    // 清空已选
-    $('#repo-clear-btn').on('click', () => {
-      state.selectedMessages = [];
-      // 移除所有消息的选中样式
-      document.querySelectorAll('.mes.repo-selected').forEach(el => {
-        el.classList.remove('repo-selected');
-        const btn = el.querySelector('.repo-select-btn');
-        if (btn) btn.textContent = '＋';
-      });
-      renderSelectedList();
-    });
+  const getMessageRole = (mesEl) => {
+    if (mesEl.getAttribute("is_user") === "true") return "user";
+    if (mesEl.classList.contains("user_mes")) return "user";
+    return "ai";
+  };
 
-    // 自动打码开关
-    $('#repo-auto-redact').on('change', function () {
-      state.autoRedact = this.checked;
-    });
+  const getMessageText = (mesEl) => {
+    const mesTextEl = mesEl.querySelector(".mes_text");
+    return mesTextEl ? mesTextEl.textContent.trim() : "";
+  };
 
-    // 添加自定义打码词
-    $('#repo-redact-add').on('click', addRedactWord);
-    $('#repo-redact-input').on('keydown', function (e) {
-      if (e.key === 'Enter') addRedactWord();
-    });
-
-    // 打码样式切换
-    $('input[name="redact-style"]').on('change', function () {
-      state.redactStyle = this.value;
-    });
-
-    // 评论输入
-    $('#repo-comment').on('input', function () {
-      state.comment = this.value;
-    });
-
-    // 主题切换
-    $('.repo-theme-btn').on('click', function () {
-      const theme = $(this).data('theme');
-      state.theme = theme;
-      $('.repo-theme-btn').removeClass('active');
-      $(this).addClass('active');
-    });
-
-    // 导出按钮（阶段三实现，先占位）
-    $('#repo-export-btn').on('click', () => {
-      if (state.selectedMessages.length === 0) {
-        alert('请先选取至少一条楼层！');
-        return;
-      }
-      alert('导出功能将在阶段三实现 🚧');
-    });
-  }
-
-  // ── 添加打码词 ───────────────────────────────────────────
-  function addRedactWord() {
-    const input = document.getElementById('repo-redact-input');
-    const word = input.value.trim();
-    if (!word || state.redactWords.includes(word)) {
-      input.value = '';
-      return;
-    }
-    state.redactWords.push(word);
-    input.value = '';
-    renderRedactTags();
-  }
-
-  function renderRedactTags() {
-    const container = document.getElementById('repo-redact-tags');
-    container.innerHTML = state.redactWords.map((w, i) => `
-      <span class="repo-tag">
-        ${escapeHtml(w)}
-        <button class="repo-tag-remove" data-index="${i}">×</button>
-      </span>
-    `).join('');
-
-    container.querySelectorAll('.repo-tag-remove').forEach(btn => {
-      btn.addEventListener('click', function () {
-        state.redactWords.splice(parseInt(this.dataset.index), 1);
-        renderRedactTags();
-      });
-    });
-  }
-
-  // ── 渲染已选列表 ─────────────────────────────────────────
-  function renderSelectedList() {
-    const list = document.getElementById('repo-selected-list');
-    const count = document.getElementById('repo-count');
-    count.textContent = state.selectedMessages.length;
-
-    if (state.selectedMessages.length === 0) {
-      list.innerHTML = '<div class="repo-empty-hint">悬停消息，点击 ＋ 选取楼层</div>';
-      return;
-    }
-
-    list.innerHTML = state.selectedMessages.map((msg, i) => `
-      <div class="repo-selected-item">
-        <button class="repo-item-remove" data-index="${i}">×</button>
-        <span class="repo-item-role">${escapeHtml(msg.name)}</span>
-        <span class="repo-item-preview">${escapeHtml(truncate(msg.content, 30))}</span>
+  // ============ 面板 HTML ============
+  const buildPanelHTML = () => {
+    return `
+    <div id="repo-helper-panel">
+      <!-- 标题栏 -->
+      <div class="repo-title-bar">
+        <h3>📋Repo 小助手 <span class="repo-version">v1.0</span></h3>
       </div>
-    `).join('');
 
-    list.querySelectorAll('.repo-item-remove').forEach(btn => {
-      btn.addEventListener('click', function () {
-        const idx = parseInt(this.dataset.index);
-        const msg = state.selectedMessages[idx];
-        // 取消消息高亮
-        if (msg.element) {
-          msg.element.classList.remove('repo-selected');
-          const selectBtn = msg.element.querySelector('.repo-select-btn');
-          if (selectBtn) selectBtn.textContent = '＋';
+      <!-- 区块1：已选楼层 -->
+      <div class="repo-section" data-section="selected">
+        <div class="repo-section-header" data-target="selected">
+          <span class="section-title">📌 已选楼层 <span class="repo-badge" id="repo-count">0</span></span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="repo-section-body" id="repo-section-selected">
+          <ul class="repo-selected-list" id="repo-selected-list"><li class="repo-selected-empty">还没有选取任何楼层哦～<br>悬停在消息上点击 ＋ 即可选取</li>
+          </ul>
+          <div class="repo-actions">
+            <button class="repo-btn repo-btn-clear" id="repo-btn-clear">🗑 清空</button>
+            <button class="repo-btn repo-btn-preview" id="repo-btn-preview">👁 预览导出</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 区块2：打码设置 -->
+      <div class="repo-section" data-section="redact">
+        <div class="repo-section-header" data-target="redact">
+          <span class="section-title">🔒 打码设置</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="repo-section-body" id="repo-section-redact">
+          <div class="repo-redact-row">
+            <label>
+              <input type="checkbox" id="repo-auto-redact" checked>
+              自动打码 {{user}} 名字（<strong id="repo-username-display"></strong>）
+            </label>
+          </div>
+          <div class="repo-custom-words">
+            <input type="text" id="repo-custom-word-input" placeholder="输入需要打码的词…">
+            <button class="repo-btn-add" id="repo-btn-add-word">+ 添加</button>
+          </div>
+          <div class="repo-word-tags" id="repo-word-tags"></div>
+          <div class="repo-redact-styles">
+            <label><input type="radio" name="repo-redact-style" value="block" checked> ████黑块</label>
+            <label><input type="radio" name="repo-redact-style" value="star"> ＊＊＊ 星号</label>
+            <label><input type="radio" name="repo-redact-style" value="blur"> 模糊</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 区块3：评论 -->
+      <div class="repo-section" data-section="comment">
+        <div class="repo-section-header" data-target="comment">
+          <span class="section-title">💬 我的评论</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="repo-section-body" id="repo-section-comment">
+          <textarea class="repo-comment-area" id="repo-comment" placeholder="写点评论吧～ repo的灵魂所在 ✨"></textarea>
+        </div>
+      </div>
+
+      <!-- 区块4：主题 & 导出 -->
+      <div class="repo-section" data-section="export">
+        <div class="repo-section-header" data-target="export">
+          <span class="section-title">🎨 主题 & 导出</span>
+          <span class="section-toggle">▼</span>
+        </div>
+        <div class="repo-section-body" id="repo-section-export">
+          <div class="repo-theme-row">
+            <button class="repo-theme-btn active" data-theme="pink">🌸 粉嫩少女</button>
+            <button class="repo-theme-btn" data-theme="cyber">🌃赛博暗黑</button>
+            <button class="repo-theme-btn" data-theme="paper">📜 简约纸张</button>
+            <button class="repo-theme-btn" data-theme="forest">🌿 森林物语</button>
+            <button class="repo-theme-btn" data-theme="sunset">🌅 日落黄昏</button>
+          </div>
+          <div class="repo-bg-url-row">
+            <input type="text" id="repo-bg-url" placeholder="自定义背景图 URL（可选）">
+          </div>
+          <button class="repo-export-btn" id="repo-btn-export">📥 导出图片</button>
+        </div>
+      </div>
+    </div>
+    `;
+  };
+
+  // ============ 面板折叠逻辑 ============
+  const initCollapsible = () => {
+    document.querySelectorAll("#repo-helper-panel .repo-section-header").forEach((header) => {
+      header.addEventListener("click", () => {
+        const target = header.getAttribute("data-target");
+        const body = document.getElementById(`repo-section-${target}`);
+        if (!body) return;
+
+        const isCollapsed = body.classList.contains("collapsed");
+        if (isCollapsed) {
+          body.classList.remove("collapsed");
+          header.classList.remove("collapsed");
+        } else {
+          body.classList.add("collapsed");
+          header.classList.add("collapsed");
         }
-        state.selectedMessages.splice(idx, 1);
-        renderSelectedList();
       });
     });
-  }
+  };
 
-  // ── 消息选取按钮注入 ─────────────────────────────────────
-  function injectSelectButton(mesElement) {
-    if (mesElement.querySelector('.repo-select-btn')) return;
+  // ============ 已选列表渲染 ============
+  const renderSelectedList = () => {
+    const listEl = document.getElementById("repo-selected-list");
+    const countEl = document.getElementById("repo-count");
+    if (!listEl || !countEl) return;
 
-    const btn = document.createElement('button');
-    btn.className = 'repo-select-btn';
-    btn.textContent = '＋';
-    btn.title = '选取此楼层';
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleSelectMessage(mesElement);
+    countEl.textContent = STATE.selectedMessages.length;
+
+    if (STATE.selectedMessages.length === 0) {
+      listEl.innerHTML = `<li class="repo-selected-empty">还没有选取任何楼层哦～<br>悬停在消息上点击 ＋ 即可选取</li>`;
+      return;
+    }
+
+    listEl.innerHTML = STATE.selectedMessages
+      .map((msg, idx) => {
+        const roleClass = msg.role === "user" ? "role-user" : "role-ai";
+        const roleLabel = msg.role === "user" ? "👤 我" : "🤖 AI";
+        return `
+        <li class="repo-selected-item" data-idx="${idx}">
+          <span class="repo-item-role ${roleClass}">${roleLabel}</span>
+          <span class="repo-item-text">${truncateText(msg.text, 60)}</span>
+          <button class="repo-item-remove" data-idx="${idx}" title="移除">✕</button>
+        </li>`;
+      })
+      .join("");
+
+    // 绑定移除按钮
+    listEl.querySelectorAll(".repo-item-remove").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute("data-idx"));
+        removeSelectedMessage(idx);
+      });
     });
+  };
 
-    mesElement.appendChild(btn);
-  }
+  // ============ 消息选取/取消 ============
+  const toggleSelectMessage = (mesEl) => {
+    const mesId = getMessageId(mesEl);
+    const existIdx = STATE.selectedMessages.findIndex((m) => m.mesId === mesId);
 
-  function toggleSelectMessage(mesElement) {
-    const isSelected = mesElement.classList.contains('repo-selected');
-
-    if (isSelected) {
+    if (existIdx !== -1) {
       // 取消选取
-      mesElement.classList.remove('repo-selected');
-      const btn = mesElement.querySelector('.repo-select-btn');
-      if (btn) btn.textContent = '＋';
-
-      state.selectedMessages = state.selectedMessages.filter(
-        m => m.element !== mesElement
-      );
+      STATE.selectedMessages.splice(existIdx, 1);
+      mesEl.classList.remove("repo-selected");
+      const btn = mesEl.querySelector(".repo-select-btn");
+      if (btn) {
+        btn.classList.remove("selected");
+        btn.textContent = "＋";
+      }
     } else {
       // 选取
-      mesElement.classList.add('repo-selected');
-      const btn = mesElement.querySelector('.repo-select-btn');
-      if (btn) btn.textContent = '✓';
-
-      // 提取消息内容
-      const msgData = extractMessageData(mesElement);
-      state.selectedMessages.push(msgData);
+      STATE.selectedMessages.push({
+        mesId: mesId,
+        role: getMessageRole(mesEl),
+        text: getMessageText(mesEl),
+        element: mesEl,
+      });
+      mesEl.classList.add("repo-selected");
+      const btn = mesEl.querySelector(".repo-select-btn");
+      if (btn) {
+        btn.classList.add("selected");
+        btn.textContent = "✓";
+      }
     }
 
     renderSelectedList();
-  }
+  };
 
-  function extractMessageData(mesElement) {
-    // ST 消息结构：.mes_block > .mes_text 存放正文
-    // .name_text 存放角色名，.mes[is_user] 区分用户/AI
-    const isUser = mesElement.getAttribute('is_user') === 'true';
-    const nameEl = mesElement.querySelector('.name_text');
-    const textEl = mesElement.querySelector('.mes_text');
+  const removeSelectedMessage = (idx) => {
+    const msg = STATE.selectedMessages[idx];
+    if (msg && msg.element) {
+      msg.element.classList.remove("repo-selected");
+      const btn = msg.element.querySelector(".repo-select-btn");
+      if (btn) {
+        btn.classList.remove("selected");
+        btn.textContent = "＋";
+      }
+    }
+    STATE.selectedMessages.splice(idx, 1);
+    renderSelectedList();
+  };
 
-    return {
-      id: mesElement.getAttribute('mesid') || Date.now().toString(),
-      role: isUser ? 'user' : 'assistant',
-      name: nameEl ? nameEl.textContent.trim() : (isUser ? '用户' : 'AI'),
-      content: textEl ? textEl.innerText.trim() : '',
-      element: mesElement,
-    };
-  }
+  const clearAllSelected = () => {
+    STATE.selectedMessages.forEach((msg) => {
+      if (msg.element) {
+        msg.element.classList.remove("repo-selected");
+        const btn = msg.element.querySelector(".repo-select-btn");
+        if (btn) {
+          btn.classList.remove("selected");
+          btn.textContent = "＋";
+        }
+      }
+    });
+    STATE.selectedMessages = [];
+    renderSelectedList();
+  };
 
-  // ── MutationObserver 监听新消息 ──────────────────────────
-  function observeChat() {
-    const chat = document.getElementById('chat');
-    if (!chat) {
-      setTimeout(observeChat, 1000);
+  // ============ 注入选取按钮到消息 ============
+  const injectSelectButton = (mesEl) => {
+    if (mesEl.querySelector(".repo-select-btn")) return;
+
+    const btn = document.createElement("button");
+    btn.className = "repo-select-btn";
+    btn.textContent = "＋";
+    btn.title = "选取此楼层";
+
+    // 检查是否已在已选列表中（切换聊天后恢复状态）
+    const mesId = getMessageId(mesEl);
+    const isSelected = STATE.selectedMessages.some((m) => m.mesId === mesId);
+    if (isSelected) {
+      btn.classList.add("selected");
+      btn.textContent = "✓";
+      mesEl.classList.add("repo-selected");
+    }
+
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      toggleSelectMessage(mesEl);
+    });
+
+    // 确保消息元素是relative 定位
+    const pos = window.getComputedStyle(mesEl).position;
+    if (pos === "static") {
+      mesEl.style.position = "relative";
+    }
+
+    mesEl.appendChild(btn);
+  };
+
+  const injectAllSelectButtons = () => {
+    document.querySelectorAll("#chat .mes").forEach((mesEl) => {
+      injectSelectButton(mesEl);
+    });
+  };
+
+  // ============ MutationObserver 监听新消息 ============
+  const initChatObserver = () => {
+    const chatContainer = document.getElementById("chat");
+    if (!chatContainer) {
+      // 如果 #chat 还没出现，等一会再试
+      setTimeout(initChatObserver, 1000);
       return;
     }
 
-    // 给已有消息注入按钮
-    chat.querySelectorAll('.mes').forEach(injectSelectButton);
+    // 先给已有消息注入按钮
+    injectAllSelectButtons();
 
     // 监听新消息
     const observer = new MutationObserver((mutations) => {
-      mutations.forEach(mutation => {
-        mutation.addedNodes.forEach(node => {
-          if (node.nodeType === 1) {
-            if (node.classList.contains('mes')) {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.classList && node.classList.contains("mes")) {
               injectSelectButton(node);
             }
-            // 子节点里也可能有 .mes
-            node.querySelectorAll && node.querySelectorAll('.mes').forEach(injectSelectButton);
+            // 也检查子节点
+            if (node.querySelectorAll) {
+              node.querySelectorAll(".mes").forEach(injectSelectButton);
+            }
           }
         });
       });
     });
 
-    observer.observe(chat, { childList: true, subtree: true });
-    console.log('[Repo小助手] 消息监听已启动 ✓');
-  }
+    observer.observe(chatContainer, {
+      childList: true,
+      subtree: true,
+    });
 
-  // ── 工具函数 ─────────────────────────────────────────────
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+    console.log("[Repo小助手] Chat observer 已启动");
+  };
 
-  function truncate(str, len) {
-    return str.length > len ? str.slice(0, len) + '…' : str;
-  }
+  // ============ 打码词管理 ============
+  const initRedactControls = () => {
+    // 自动打码复选框
+    const autoRedactCb = document.getElementById("repo-auto-redact");
+    if (autoRedactCb) {
+      autoRedactCb.addEventListener("change", () => {
+        STATE.autoRedact = autoRedactCb.checked;
+      });
+    }
 
-  // ── 入口 ─────────────────────────────────────────────────
-  function init() {
-    initPanel();
-    observeChat();
-  }
+    // 显示当前用户名
+    const usernameDisplay = document.getElementById("repo-username-display");
+    if (usernameDisplay) {
+      usernameDisplay.textContent = getUserName();
+      // 定期更新（用户可能切换 persona）
+      setInterval(() => {
+        usernameDisplay.textContent = getUserName();
+      }, 3000);
+    }
 
-  // ST 加载完成后执行
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    // 添加自定义打码词
+    const addWordBtn = document.getElementById("repo-btn-add-word");
+    const wordInput = document.getElementById("repo-custom-word-input");
+    if (addWordBtn && wordInput) {
+      const addWord = () => {
+        const word = wordInput.value.trim();
+        if (word && !STATE.customRedactWords.includes(word)) {
+          STATE.customRedactWords.push(word);
+          wordInput.value = "";
+          renderWordTags();
+        }
+      };
+      addWordBtn.addEventListener("click", addWord);
+      wordInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addWord();
+      });
+    }
+
+    // 打码样式切换
+    document.querySelectorAll('input[name="repo-redact-style"]').forEach((radio) => {
+      radio.addEventListener("change", () => {
+        STATE.redactStyle = radio.value;
+      });
+    });
+  };
+
+  const renderWordTags = () => {
+    const container = document.getElementById("repo-word-tags");
+    if (!container) return;
+
+    container.innerHTML = STATE.customRedactWords
+      .map(
+        (word, idx) => `
+      <span class="repo-word-tag">
+        ${word}
+        <span class="tag-remove" data-idx="${idx}">✕</span>
+      </span>`
+      )
+      .join("");
+
+    container.querySelectorAll(".tag-remove").forEach((el) => {
+      el.addEventListener("click", () => {
+        const idx = parseInt(el.getAttribute("data-idx"));
+        STATE.customRedactWords.splice(idx, 1);
+        renderWordTags();
+      });
+    });
+  };
+
+  // ============ 评论 ============
+  const initCommentArea = () => {
+    const textarea = document.getElementById("repo-comment");
+    if (textarea) {
+      textarea.addEventListener("input", () => {
+        STATE.comment = textarea.value;
+      });
+    }
+  };
+
+  // ============ 主题选择 ============
+  const initThemeSelector = () => {
+    document.querySelectorAll(".repo-theme-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".repo-theme-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        STATE.theme = btn.getAttribute("data-theme");
+      });
+    });
+
+    // 背景图 URL
+    const bgInput = document.getElementById("repo-bg-url");
+    if (bgInput) {
+      bgInput.addEventListener("input", () => {
+        STATE.bgUrl = bgInput.value.trim();
+      });
+    }
+  };
+
+  // ============ 按钮事件 ============
+  const initButtons = () => {
+    // 清空按钮
+    const clearBtn = document.getElementById("repo-btn-clear");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => {
+        if (STATE.selectedMessages.length === 0) return;
+        clearAllSelected();
+      });
+    }
+
+    // 预览按钮（阶段三实现，先占位）
+    const previewBtn = document.getElementById("repo-btn-preview");
+    if (previewBtn) {
+      previewBtn.addEventListener("click", () => {
+        if (STATE.selectedMessages.length === 0) {
+          toastr.warning("请先选取至少一条消息哦～");
+          return;
+        }
+        toastr.info(`已选 ${STATE.selectedMessages.length} 条消息，导出功能开发中…`);
+      });
+    }
+
+    // 导出按钮（阶段三实现，先占位）
+    const exportBtn = document.getElementById("repo-btn-export");
+    if (exportBtn) {
+      exportBtn.addEventListener("click", () => {
+        if (STATE.selectedMessages.length === 0) {
+          toastr.warning("请先选取至少一条消息哦～");
+          return;
+        }
+        toastr.info(`导出功能将在下一阶段实现 🚧`);
+      });
+    }
+  };
+
+  // ============ 插件初始化 ============
+  const init = () => {
+    console.log("[Repo小助手] 正在初始化…");
+
+    // 注入面板到ST 的Extensions 设置区
+    const settingsContainer = document.getElementById("extensions_settings");
+    if (!settingsContainer) {
+      console.warn("[Repo小助手] 未找到 #extensions_settings，1秒后重试");
+      setTimeout(init, 1000);
+      return;
+    }
+
+    // 避免重复注入
+    if (document.getElementById("repo-helper-panel")) {
+      console.log("[Repo小助手] 面板已存在，跳过注入");
+      return;
+    }
+
+    // 创建面板容器
+    const wrapper = document.createElement("div");
+    wrapper.id = "repo-helper-wrapper";
+    wrapper.innerHTML = buildPanelHTML();
+    settingsContainer.appendChild(wrapper);
+
+    // 初始化各模块
+    initCollapsible();
+    initRedactControls();
+    initCommentArea();
+    initThemeSelector();
+    initButtons();
+
+    // 启动聊天消息监听
+    initChatObserver();
+
+    console.log("[Repo小助手] ✅ 初始化完成！");
+
+    // 通知用户
+    if (typeof toastr !== "undefined") {
+      toastr.success("Repo 小助手已加载 📋✨");
+    }
+  };
+
+  // ============ 启动 ============
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => setTimeout(init, 2000));
   } else {
-    init();
+    setTimeout(init, 2000);
   }
-
 })();

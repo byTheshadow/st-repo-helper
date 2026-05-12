@@ -1,12 +1,13 @@
 {
-  "display_name": "Repo 小助手",
-  "loading_order": 10,
+  "display_name": "Repo小助手",
+  "name": "st-repo-helper",
+  "version": "0.1.0",
+  "description": "帮助你把聊天记录整理成精美的repo图，支持楼层选取、打码、评论、多主题导出。",
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "style.css",
-  "author": "shadow",
-  "version": "1.0.0",
-  "homePage": "https://github.com/shadow/st-repo-helper",
-  "auto_update": false
+  "author": "",
+  "homePage": "",
+  "tags": ["utility", "export"]
 }

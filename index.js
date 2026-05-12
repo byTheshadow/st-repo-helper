@@ -611,17 +611,18 @@
      10. ST 侧边栏面板挂载
      ============================================================ */
 
-  function mountPanel() {
-    // 避免重复挂载
+   function mountPanel() {
     if (document.getElementById('repo-helper-panel')) return;
 
-    // ST 的扩展面板容器
-    const extensionsMenu = document.getElementById('extensionsMenu');
+    // 创建标准的 extension_container，与其他插件保持一致
+    const container = document.createElement('div');
+    container.id = 'repo-helper-container';
+    container.className = 'extension_container';
 
-    // 创建侧边栏抽屉条目（与其他插件保持一致的挂载方式）
-    const drawerHtml = `
-      <div id="repo-helper-drawer" class="drawer">
-        <div class="drawer-toggle inline-drawer-toggle inline-drawer-header">
+    // ST 标准抽屉结构
+    container.innerHTML = `
+      <div class="inline-drawer">
+        <div class="inline-drawer-toggle inline-drawer-header">
           <b>📋 Repo小助手</b>
           <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
         </div>
@@ -631,28 +632,26 @@
       </div>
     `;
 
-    // 挂载到 ST 左侧扩展面板区域
+    // 挂到 extensions_settings2（右列），找不到就用 extensions_settings（左列）
     const target =
-      document.getElementById('left-nav-panel') ||
-      document.getElementById('extensions_settings') ||
-      extensionsMenu;
+      document.getElementById('extensions_settings2') ||
+      document.getElementById('extensions_settings');
 
     if (target) {
-      target.insertAdjacentHTML('beforeend', drawerHtml);
+      target.appendChild(container);
     } else {
-      // 最终回退：直接挂到 body 右下角浮窗
-      const fallback = document.createElement('div');
-      fallback.style.cssText = `
-        position: fixed; bottom: 20px; right: 20px; width: 300px;
-        max-height: 80vh; z-index: 9999; border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.5); overflow: hidden;
+      // 最终回退：右下角浮窗
+      container.style.cssText = `
+        position:fixed;bottom:20px;right:20px;width:300px;
+        max-height:80vh;z-index:9999;border-radius:12px;
+        box-shadow:0 8px 32px rgba(0,0,0,0.5);overflow:hidden;
       `;
-      fallback.innerHTML = buildPanelHTML();
-      document.body.appendChild(fallback);
+      document.body.appendChild(container);
     }
 
     bindPanelEvents();
   }
+
 
   /* ============================================================
      11. 插件入口 — 等待 ST 就绪后初始化

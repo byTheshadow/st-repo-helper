@@ -743,4 +743,703 @@
 /* ============================================================
    END Phase 2 样式
    ============================================================ */
+   /* ============================================================
+   Phase 3 — 导出引擎样式
+   ============================================================ */
+
+/* ── 导出 Tab 面板布局 ── */
+.repo-export-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  height: 100%;
+}
+
+.repo-export-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.repo-export-section:last-child {
+  border-bottom: none;
+}
+
+/* ── 导出选项行 ── */
+.repo-export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.repo-export-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.repo-export-option-row label {
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+/* ── 分页尺寸选择 ── */
+.repo-page-size-select {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
+  color: inherit;
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+  outline: none;
+}
+.repo-page-size-select:focus {
+  border-color: #e879a0;
+}
+
+/* ── 导出按钮组 ── */
+.repo-export-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+}
+
+.repo-export-btn-png {
+  background: linear-gradient(135deg, #e879a0, #a78bfa);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 0;
+  width: 100%;
+  transition: opacity 0.2s, transform 0.1s;
+  letter-spacing: 0.03em;
+}
+.repo-export-btn-png:hover  { opacity: 0.88; }
+.repo-export-btn-png:active { transform: scale(0.98); }
+.repo-export-btn-png:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.repo-export-btn-md {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 7px 0;
+  width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+.repo-export-btn-md:hover {
+  background: rgba(167, 139, 250, 0.15);
+  border-color: #a78bfa;
+  color: #a78bfa;
+}
+
+.repo-export-btn-copy {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 7px 0;
+  width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+.repo-export-btn-copy:hover {
+  background: rgba(52, 211, 153, 0.12);
+  border-color: #34d399;
+  color: #34d399;
+}
+
+/* ── 进度提示 ── */
+.repo-export-progress {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  opacity: 0.7;
+  padding: 0 12px 8px;
+}
+.repo-export-progress.show {
+  display: flex;
+}
+.repo-export-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(232, 121, 160, 0.3);
+  border-top-color: #e879a0;
+  border-radius: 50%;
+  animation: repo-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes repo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   预览弹窗
+   ============================================================ */
+.repo-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+  animation: repo-fade-in 0.2s ease;
+}
+@keyframes repo-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.repo-preview-modal {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  max-width: 680px;
+  width: 100%;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+  animation: repo-slide-up 0.25s ease;
+}
+@keyframes repo-slide-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.repo-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.repo-preview-title {
+  font-size: 14px;
+  font-weight: 600;
+  background: linear-gradient(90deg, #e879a0, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.repo-preview-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.repo-preview-close:hover { color: #fff; }
+
+.repo-preview-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 121, 160, 0.3) transparent;
+}
+.repo-preview-scroll::-webkit-scrollbar { width: 4px; }
+.repo-preview-scroll::-webkit-scrollbar-thumb {
+  background: rgba(232, 121, 160, 0.3);
+  border-radius: 2px;
+}
+
+.repo-preview-img {
+  width: 100%;
+  border-radius: 8px;
+  display: block;
+}
+
+.repo-preview-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.repo-preview-footer .repo-export-btn-png {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 12px;
+}
+.repo-preview-footer .repo-export-btn-copy {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 12px;
+}
+
+/* ============================================================
+   导出画布 — 手帐风格主题
+   ============================================================ */
+
+/* 画布容器（离屏渲染，不可见） */
+.repo-canvas-host {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* ── 画布基础 ── */
+.repo-export-canvas {
+  font-family: 'Hiragino Sans GB', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  padding: 32px 28px 24px;
+  min-width: 480px;
+  max-width: 640px;
+  box-sizing: border-box;
+  position: relative;
+}
+
+/* ── 画布顶部装饰条 ── */
+.repo-canvas-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px dashed rgba(0,0,0,0.12);
+}
+.repo-canvas-header-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.repo-canvas-header-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  opacity: 0.55;
+  text-transform: uppercase;
+}
+
+/* ── 消息气泡 ── */
+.repo-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.repo-bubble-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+/* 用户消息靠右，AI消息靠左 */
+.repo-bubble-item.is-user {
+  align-items: flex-end;
+}
+.repo-bubble-item.is-ai {
+  align-items: flex-start;
+}
+
+/* 发送者名称 */
+.repo-bubble-sender {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+  padding: 0 6px;
+}
+
+/* 气泡主体 */
+.repo-bubble {
+  max-width: 82%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  line-height: 1.75;
+  word-break: break-word;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* 手帐风格：带纸张纹理感的小折角装饰 */
+.repo-bubble::before {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  top: 12px;
+}
+
+.repo-bubble-item.is-user .repo-bubble::before {
+  right: -7px;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+
+.repo-bubble-item.is-ai .repo-bubble::before {
+  left: -7px;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+}
+
+/* 楼层号小标签 */
+.repo-bubble-floor {
+  font-size: 10px;
+  opacity: 0.4;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 标注贴纸 ── */
+.repo-bubble-annotations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 6px;
+  max-width: 82%;
+}
+
+.repo-ann-sticker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  line-height: 1.4;
+}
+
+.repo-ann-sticker.highlight {
+  background: rgba(251, 191, 36, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.5);
+  color: #92400e;
+}
+
+.repo-ann-sticker.circle {
+  background: rgba(248, 113, 113, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  color: #991b1b;
+}
+
+/* ── 全局评论区 ── */
+.repo-canvas-comment {
+  margin-top: 20px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.8;
+  border-left: 3px solid;
+  position: relative;
+}
+
+.repo-canvas-comment::before {
+  content: '✍️';
+  position: absolute;
+  top: -10px;
+  left: 10px;
+  font-size: 16px;
+}
+
+/* ── 画布底部水印 ── */
+.repo-canvas-footer {
+  margin-top: 16px;
+  text-align: right;
+  font-size: 10px;
+  opacity: 0.3;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   8套主题 — 导出画布配色
+   ============================================================ */
+
+/* 🌸 粉嫩少女 */
+.repo-theme-sakura .repo-export-canvas {
+  background: linear-gradient(160deg, #fff5f8 0%, #fce4ec 60%, #f3e5f5 100%);
+  color: #4a1942;
+}
+.repo-theme-sakura .repo-canvas-header { border-bottom-color: rgba(233,30,99,0.15); }
+.repo-theme-sakura .repo-canvas-header-dot { background: #f48fb1; }
+.repo-theme-sakura .repo-canvas-header-title { color: #c2185b; }
+.repo-theme-sakura .repo-bubble-item.is-user .repo-bubble {
+  background: linear-gradient(135deg, #f48fb1, #ce93d8);
+  color: #fff;
+}
+.repo-theme-sakura .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #f48fb1;
+}
+.repo-theme-sakura .repo-bubble-item.is-ai .repo-bubble {
+  background: #fff0f5;
+  color: #4a1942;
+  border: 1px solid rgba(244,143,177,0.3);
+}
+.repo-theme-sakura .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid #fff0f5;
+}
+.repo-theme-sakura .repo-canvas-comment {
+  background: rgba(252,228,236,0.6);
+  border-left-color: #f48fb1;
+  color: #4a1942;
+}
+.repo-theme-sakura .repo-canvas-footer { color: #c2185b; }
+
+/* 🌙 赛博暗黑 */
+.repo-theme-cyber .repo-export-canvas {
+  background: linear-gradient(160deg, #0a0a1a 0%, #0d0d2b 60%, #1a0533 100%);
+  color: #e0e0ff;
+}
+.repo-theme-cyber .repo-canvas-header { border-bottom-color: rgba(0,255,231,0.2); }
+.repo-theme-cyber .repo-canvas-header-dot { background: #00ffe7; }
+.repo-theme-cyber .repo-canvas-header-title { color: #00ffe7; }
+.repo-theme-cyber .repo-bubble-item.is-user .repo-bubble {
+  background: linear-gradient(135deg, #7c3aed, #2563eb);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(124,58,237,0.4);
+}
+.repo-theme-cyber .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #7c3aed;
+}
+.repo-theme-cyber .repo-bubble-item.is-ai .repo-bubble {
+  background: rgba(0,255,231,0.07);
+  color: #e0e0ff;
+  border: 1px solid rgba(0,255,231,0.2);
+  box-shadow: 0 0 8px rgba(0,255,231,0.1);
+}
+.repo-theme-cyber .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid rgba(0,255,231,0.07);
+}
+.repo-theme-cyber .repo-canvas-comment {
+  background: rgba(0,255,231,0.05);
+  border-left-color: #00ffe7;
+  color: #a5f3fc;
+}
+.repo-theme-cyber .repo-canvas-footer { color: #00ffe7; }
+
+/* 📄 简约纸张 */
+.repo-theme-paper .repo-export-canvas {
+  background: linear-gradient(160deg, #faf8f4 0%, #f5f0e8 100%);
+  color: #3d2b1f;
+}
+.repo-theme-paper .repo-canvas-header { border-bottom-color: rgba(93,64,55,0.15); }
+.repo-theme-paper .repo-canvas-header-dot { background: #a1887f; }
+.repo-theme-paper .repo-canvas-header-title { color: #6d4c41; }
+.repo-theme-paper .repo-bubble-item.is-user .repo-bubble {
+  background: #d7ccc8;
+  color: #3e2723;
+}
+.repo-theme-paper .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #d7ccc8;
+}
+.repo-theme-paper .repo-bubble-item.is-ai .repo-bubble {
+  background: #fff8f0;
+  color: #3d2b1f;
+  border: 1px solid rgba(161,136,127,0.3);
+}
+.repo-theme-paper .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid #fff8f0;
+}
+.repo-theme-paper .repo-canvas-comment {
+  background: rgba(215,204,200,0.3);
+  border-left-color: #a1887f;
+  color: #3d2b1f;
+}
+.repo-theme-paper .repo-canvas-footer { color: #a1887f; }
+
+/* 🌊 清新水蓝 */
+.repo-theme-ocean .repo-export-canvas {
+  background: linear-gradient(160deg, #e0f7fa 0%, #b2ebf2 60%, #e0f2f1 100%);
+  color: #004d40;
+}
+.repo-theme-ocean .repo-canvas-header { border-bottom-color: rgba(0,150,136,0.2); }
+.repo-theme-ocean .repo-canvas-header-dot { background: #4dd0e1; }
+.repo-theme-ocean .repo-canvas-header-title { color: #00796b; }
+.repo-theme-ocean .repo-bubble-item.is-user .repo-bubble {
+  background: linear-gradient(135deg, #00acc1, #00897b);
+  color: #fff;
+}
+.repo-theme-ocean .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #00acc1;
+}
+.repo-theme-ocean .repo-bubble-item.is-ai .repo-bubble {
+  background: rgba(255,255,255,0.7);
+  color: #004d40;
+  border: 1px solid rgba(77,208,225,0.35);
+}
+.repo-theme-ocean .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid rgba(255,255,255,0.7);
+}
+.repo-theme-ocean .repo-canvas-comment {
+  background: rgba(178,235,242,0.5);
+  border-left-color: #4dd0e1;
+  color: #004d40;
+}
+.repo-theme-ocean .repo-canvas-footer { color: #00796b; }
+
+/* 🍂 复古暖秋 */
+.repo-theme-autumn .repo-export-canvas {
+  background: linear-gradient(160deg, #fff8f0 0%, #fff3e0 60%, #fbe9e7 100%);
+  color: #4e342e;
+}
+.repo-theme-autumn .repo-canvas-header { border-bottom-color: rgba(191,54,12,0.15); }
+.repo-theme-autumn .repo-canvas-header-dot { background: #ff8a65; }
+.repo-theme-autumn .repo-canvas-header-title { color: #bf360c; }
+.repo-theme-autumn .repo-bubble-item.is-user .repo-bubble {
+  background: linear-gradient(135deg, #ff7043, #e64a19);
+  color: #fff;
+}
+.repo-theme-autumn .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #ff7043;
+}
+.repo-theme-autumn .repo-bubble-item.is-ai .repo-bubble {
+  background: #fff8f0;
+  color: #4e342e;
+  border: 1px solid rgba(255,138,101,0.3);
+}
+.repo-theme-autumn .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid #fff8f0;
+}
+.repo-theme-autumn .repo-canvas-comment {
+  background: rgba(255,243,224,0.7);
+  border-left-color: #ff8a65;
+  color: #4e342e;
+}
+.repo-theme-autumn .repo-canvas-footer { color: #bf360c; }
+
+/* 🌌 星空梦幻 */
+.repo-theme-galaxy .repo-export-canvas {
+  background: linear-gradient(160deg, #0d0221 0%, #1a0533 50%, #0d1b4b 100%);
+  color: #e8d5ff;
+}
+.repo-theme-galaxy .repo-canvas-header { border-bottom-color: rgba(206,147,216,0.25); }
+.repo-theme-galaxy .repo-canvas-header-dot { background: #ce93d8; }
+.repo-theme-galaxy .repo-canvas-header-title { color: #ce93d8; }
+.repo-theme-galaxy .repo-bubble-item.is-user .repo-bubble {
+  background: linear-gradient(135deg, #9c27b0, #673ab7);
+  color: #fff;
+  box-shadow: 0 0 14px rgba(156,39,176,0.35);
+}
+.repo-theme-galaxy .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #9c27b0;
+}
+.repo-theme-galaxy .repo-bubble-item.is-ai .repo-bubble {
+  background: rgba(206,147,216,0.1);
+  color: #e8d5ff;
+  border: 1px solid rgba(206,147,216,0.25);
+}
+.repo-theme-galaxy .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid rgba(206,147,216,0.1);
+}
+.repo-theme-galaxy .repo-canvas-comment {
+  background: rgba(206,147,216,0.08);
+  border-left-color: #ce93d8;
+  color: #e8d5ff;
+}
+.repo-theme-galaxy .repo-canvas-footer { color: #ce93d8; }
+
+/* 🎀 甜系可爱 */
+.repo-theme-candy .repo-export-canvas {
+  background: linear-gradient(160deg, #fff0f6 0%, #fce4ec 50%, #fce4ec 100%);
+  color: #880e4f;
+}
+.repo-theme-candy .repo-canvas-header { border-bottom-color: rgba(173,20,87,0.15); }
+.repo-theme-candy .repo-canvas-header-dot { background: #f06292; }
+.repo-theme-candy .repo-canvas-header-title { color: #ad1457; }
+.repo-theme-candy .repo-bubble-item.is-user .repo-bubble {
+  background: linear-gradient(135deg, #f06292, #ec407a);
+  color: #fff;
+}
+.repo-theme-candy .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #f06292;
+}
+.repo-theme-candy .repo-bubble-item.is-ai .repo-bubble {
+  background: #fff;
+  color: #880e4f;
+  border: 1px solid rgba(240,98,146,0.25);
+}
+.repo-theme-candy .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid #fff;
+}
+.repo-theme-candy .repo-canvas-comment {
+  background: rgba(252,228,236,0.6);
+  border-left-color: #f06292;
+  color: #880e4f;
+}
+.repo-theme-candy .repo-canvas-footer { color: #ad1457; }
+
+/* ⬛ 极简黑白 */
+.repo-theme-mono .repo-export-canvas {
+  background: #fafafa;
+  color: #1a1a1a;
+}
+.repo-theme-mono .repo-canvas-header { border-bottom-color: rgba(0,0,0,0.1); }
+.repo-theme-mono .repo-canvas-header-dot { background: #424242; }
+.repo-theme-mono .repo-canvas-header-title { color: #424242; }
+.repo-theme-mono .repo-bubble-item.is-user .repo-bubble {
+  background: #212121;
+  color: #fafafa;
+}
+.repo-theme-mono .repo-bubble-item.is-user .repo-bubble::before {
+  border-left: 8px solid #212121;
+}
+.repo-theme-mono .repo-bubble-item.is-ai .repo-bubble {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #e0e0e0;
+}
+.repo-theme-mono .repo-bubble-item.is-ai .repo-bubble::before {
+  border-right: 8px solid #fff;
+}
+.repo-theme-mono .repo-canvas-comment {
+  background: #f5f5f5;
+  border-left-color: #424242;
+  color: #1a1a1a;
+}
+.repo-theme-mono .repo-canvas-footer { color: #9e9e9e; }
+
+/* ── 打码样式（导出画布内） ── */
+.repo-export-canvas .repo-censor-block {
+  background: currentColor;
+  color: transparent;
+  border-radius: 2px;
+  user-select: none;
+}
+.repo-export-canvas .repo-censor-star  { font-weight: 700; letter-spacing: 1px; }
+.repo-export-canvas .repo-censor-blur  { filter: blur(5px); user-select: none; }
+.repo-export-canvas .repo-censor-replace { font-weight: 600; }
+
+/* ── 标注高亮/圈起（导出画布内） ── */
+.repo-export-canvas .repo-ann-sticker.highlight {
+  background: rgba(251,191,36,0.25);
+  border-color: rgba(251,191,36,0.6);
+}
+.repo-export-canvas .repo-ann-sticker.circle {
+  background: rgba(248,113,113,0.2);
+  border-color: rgba(248,113,113,0.5);
+}
+
+/* ============================================================
+   END Phase 3 样式
+   ============================================================ */
+
 

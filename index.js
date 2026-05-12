@@ -381,15 +381,81 @@ function buildPanelHTML() {
     </div>
   </div>
 
-  <!-- ── Tab: 导出 ── -->
+     <!-- ── Tab: 导出 ── -->
   <div class="repo-tab-content" data-tab-content="export">
-    <div class="repo-scroll-area">
-      <div class="repo-empty-hint" style="padding:40px 10px;">
-        🚧 导出功能将在 Phase 3 实装<br>
-        <span style="font-size:10px;opacity:0.5;">当前已选 <span id="repo-export-count">0</span> 条消息</span>
+    <div class="repo-export-panel">
+      <div class="repo-scroll-area" style="flex:1;">
+
+        <!-- 导出状态摘要 -->
+        <div class="repo-export-section">
+          <div class="repo-section-title">📊 当前状态</div>
+          <div class="repo-export-options">
+            <div class="repo-export-option-row">
+              <label>已选消息</label>
+              <span><span id="repo-export-count" style="font-weight:600;color:#e879a0;">0</span> 条</span>
+            </div>
+            <div class="repo-export-option-row">
+              <label>当前主题</label>
+              <span id="repo-export-theme-name" style="font-weight:600;color:#a78bfa;">粉嫩少女</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 导出选项 -->
+        <div class="repo-export-section">
+          <div class="repo-section-title">⚙️ 导出选项</div>
+          <div class="repo-export-options">
+            <div class="repo-export-option-row">
+              <label>画布宽度</label>
+              <select class="repo-page-size-select" id="repo-export-width">
+                <option value="480">窄幅 480px</option>
+                <option value="560" selected>标准 560px</option>
+                <option value="640">宽幅 640px</option>
+              </select>
+            </div>
+            <div class="repo-export-option-row">
+              <label>长图分页</label>
+              <select class="repo-page-size-select" id="repo-export-paging">
+                <option value="0" selected>不分页（完整长图）</option>
+                <option value="10">每 10 条一页</option>
+                <option value="20">每 20 条一页</option>
+                <option value="5">每 5 条一页</option>
+              </select>
+            </div>
+            <div class="repo-export-option-row">
+              <label>显示楼层号</label>
+              <label class="repo-toggle-row" style="margin:0;">
+                <input type="checkbox" id="repo-export-show-floor" checked>
+                <span style="font-size:11px;">开启</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
       </div>
+
+      <!-- 进度提示 -->
+      <div class="repo-export-progress" id="repo-export-progress">
+        <div class="repo-export-spinner"></div>
+        <span id="repo-export-progress-text">正在生成图片…</span>
+      </div>
+
+      <!-- 导出按钮组 -->
+      <div class="repo-export-btn-group">
+        <button class="repo-export-btn-png" id="repo-btn-export-png">
+          🖼 预览 &amp; 导出 PNG
+        </button>
+        <button class="repo-export-btn-copy" id="repo-btn-export-copy">
+          📋 复制图片到剪贴板
+        </button>
+        <button class="repo-export-btn-md" id="repo-btn-export-md">
+          📝 导出 Markdown
+        </button>
+      </div>
+
     </div>
   </div>
+
 
 </div>
   `.trim();
@@ -554,6 +620,7 @@ function buildPanelHTML() {
   /* ============================================================
      END 12. 打码系统
      ============================================================ */
+     
 
   /* ============================================================
      13. 段落标注系统
@@ -681,6 +748,529 @@ function buildPanelHTML() {
   /* ============================================================
      END 13. 段落标注系统
      ============================================================ */
+       /* ============================================================
+     14. 导出引擎
+     ============================================================ */
+
+  const ExportEngine = {
+
+    // ── html2canvas 加载状态 ──
+    _h2cLoaded: false,
+    _h2cLoading: false,
+    _h2cCallbacks: [],
+
+    /** 动态加载 html2canvas，加载完成后执行回调 */
+    loadHtml2Canvas(cb) {
+      if (this._h2cLoaded) { cb(); return; }
+      this._h2cCallbacks.push(cb);
+      if (this._h2cLoading) return;
+      this._h2cLoading = true;
+
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+      script.onload = () => {
+        this._h2cLoaded  = true;
+        this._h2cLoading = false;
+        this._h2cCallbacks.forEach(fn => fn());
+        this._h2cCallbacks = [];
+      };
+      script.onerror = () => {
+        this._h2cLoading = false;
+        this._h2cCallbacks = [];
+        showToast('⚠️ html2canvas 加载失败，请检查网络');
+      };
+      document.head.appendChild(script);
+    },
+
+    /** 读取导出选项 */
+    _getOptions() {
+      return {
+        width     : parseInt(document.getElementById('repo-export-width')?.value  || '560', 10),
+        pageSize  : parseInt(document.getElementById('repo-export-paging')?.value || '0',   10),
+        showFloor : document.getElementById('repo-export-show-floor')?.checked ?? true,
+      };
+    },
+
+    /**
+     * 构建单页导出 DOM
+     * @param {string[]} ids        — 本页消息 id 列表
+     * @param {number}   pageIndex  — 页码（0起）
+     * @param {number}   totalPages — 总页数
+     * @param {object}   opts       — 导出选项
+     * @returns {HTMLElement}
+     */
+    _buildPageDOM(ids, pageIndex, totalPages, opts) {
+      const theme = RepoState.currentTheme;
+      const themeInfo = THEMES.find(t => t.id === theme) || THEMES[0];
+
+      // 外层主题包裹
+      const wrapper = document.createElement('div');
+      wrapper.className = `repo-theme-${theme}`;
+      wrapper.style.cssText = `display:inline-block;`;
+
+      // 画布
+      const canvas = document.createElement('div');
+      canvas.className = 'repo-export-canvas';
+      canvas.style.width = opts.width + 'px';
+
+      // 顶部装饰条
+      const header = document.createElement('div');
+      header.className = 'repo-canvas-header';
+      header.innerHTML = `
+        <div class="repo-canvas-header-dot"></div>
+        <div class="repo-canvas-header-title">
+          ${escapeHtml(window.name2 || 'Chat')} · ${themeInfo.emoji} ${themeInfo.name}
+          ${totalPages > 1 ? ` · ${pageIndex + 1} / ${totalPages}` : ''}
+        </div>
+      `;
+      canvas.appendChild(header);
+
+      // 气泡列表
+      const bubbleWrap = document.createElement('div');
+      bubbleWrap.className = 'repo-bubble-wrap';
+
+      ids.forEach(id => {
+        const item = RepoState.selectedMessages.get(id);
+        if (!item) return;
+
+        const anns = RepoState.annotations.get(id) || [];
+        const isUser = item.isUser;
+
+        // 获取完整消息文本（从 DOM 元素）
+        let fullText = '';
+        if (item.element) {
+          const textEl = item.element.querySelector('.mes_text');
+          fullText = textEl ? (textEl.innerText || textEl.textContent || '') : item.text;
+        } else {
+          fullText = item.text || '';
+        }
+
+        // 应用打码
+        const processedHTML = CensorManager.applyToText(fullText);
+
+        // 气泡容器
+        const bubbleItem = document.createElement('div');
+        bubbleItem.className = `repo-bubble-item ${isUser ? 'is-user' : 'is-ai'}`;
+
+        // 发送者名称
+        const senderEl = document.createElement('div');
+        senderEl.className = 'repo-bubble-sender';
+        senderEl.textContent = item.sender || (isUser ? (window.name1 || '用户') : (window.name2 || 'AI'));
+
+        // 气泡
+        const bubble = document.createElement('div');
+        bubble.className = 'repo-bubble';
+        bubble.innerHTML = processedHTML;
+
+        // 楼层号
+        const floorEl = document.createElement('div');
+        floorEl.className = 'repo-bubble-floor';
+        if (opts.showFloor) {
+          floorEl.textContent = `# ${id}`;
+        }
+
+        bubbleItem.appendChild(senderEl);
+        bubbleItem.appendChild(bubble);
+        if (opts.showFloor) bubbleItem.appendChild(floorEl);
+
+        // 标注贴纸
+        if (anns.length > 0) {
+          const annWrap = document.createElement('div');
+          annWrap.className = 'repo-bubble-annotations';
+          anns.forEach(a => {
+            const sticker = document.createElement('span');
+            sticker.className = `repo-ann-sticker ${a.type}`;
+            sticker.innerHTML = `${a.type === 'highlight' ? '🟡' : '⭕'} ${escapeHtml(a.comment)}`;
+            annWrap.appendChild(sticker);
+          });
+          bubbleItem.appendChild(annWrap);
+        }
+
+        bubbleWrap.appendChild(bubbleItem);
+      });
+
+      canvas.appendChild(bubbleWrap);
+
+      // 全局评论（仅最后一页显示）
+      if (RepoState.globalComment && pageIndex === totalPages - 1) {
+        const commentEl = document.createElement('div');
+        commentEl.className = 'repo-canvas-comment';
+        commentEl.textContent = RepoState.globalComment;
+        canvas.appendChild(commentEl);
+      }
+
+      // 底部水印
+      const footer = document.createElement('div');
+      footer.className = 'repo-canvas-footer';
+      footer.textContent = `Repo小助手 · ${new Date().toLocaleDateString('zh-CN')}`;
+      canvas.appendChild(footer);
+
+      wrapper.appendChild(canvas);
+      return wrapper;
+    },
+
+    /**
+     * 将 DOM 元素渲染为 canvas，返回 Promise<HTMLCanvasElement>
+     */
+    _renderToCanvas(domEl) {
+      // 挂到离屏容器
+      let host = document.getElementById('repo-canvas-host');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'repo-canvas-host';
+        host.className = 'repo-canvas-host';
+        document.body.appendChild(host);
+      }
+      host.innerHTML = '';
+      host.appendChild(domEl);
+
+      return window.html2canvas(domEl, {
+        backgroundColor: null,
+        scale          : 2,           // 2x 高清
+        useCORS        : true,
+        logging        : false,
+        width          : domEl.offsetWidth,
+        height         : domEl.offsetHeight,
+      }).finally(() => {
+        host.innerHTML = '';
+      });
+    },
+
+    /**
+     * 把多个 canvas 垂直拼接成一张
+     */
+    _mergeCanvases(canvases) {
+      if (canvases.length === 1) return canvases[0];
+      const totalH = canvases.reduce((s, c) => s + c.height, 0);
+      const w      = canvases[0].width;
+      const merged = document.createElement('canvas');
+      merged.width  = w;
+      merged.height = totalH;
+      const ctx = merged.getContext('2d');
+      let y = 0;
+      canvases.forEach(c => {
+        ctx.drawImage(c, 0, y);
+        y += c.height;
+      });
+      return merged;
+    },
+
+    /**
+     * 主入口：生成所有页的 canvas，返回 Promise<HTMLCanvasElement[]>
+     */
+    async generateCanvases() {
+      const opts      = this._getOptions();
+      const ids       = RepoState.orderedIds;
+      const pageSize  = opts.pageSize > 0 ? opts.pageSize : ids.length;
+      const pages     = [];
+
+      for (let i = 0; i < ids.length; i += pageSize) {
+        pages.push(ids.slice(i, i + pageSize));
+      }
+
+      const totalPages = pages.length;
+      const canvases   = [];
+
+      for (let pi = 0; pi < pages.length; pi++) {
+        this._setProgress(`正在渲染第 ${pi + 1} / ${totalPages} 页…`);
+        const dom = this._buildPageDOM(pages[pi], pi, totalPages, opts);
+        const c   = await this._renderToCanvas(dom);
+        canvases.push(c);
+      }
+
+      return canvases;
+    },
+
+    /** 下载单张 canvas 为 PNG */
+    _downloadCanvas(canvas, filename) {
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href     = canvas.toDataURL('image/png');
+      link.click();
+    },
+
+    /** 进度条显示/隐藏 */
+    _setProgress(text) {
+      const el  = document.getElementById('repo-export-progress');
+      const txt = document.getElementById('repo-export-progress-text');
+      if (!el) return;
+      if (text) {
+        el.classList.add('show');
+        if (txt) txt.textContent = text;
+      } else {
+        el.classList.remove('show');
+      }
+    },
+
+    /** 禁用/启用导出按钮 */
+    _setBusy(busy) {
+      ['repo-btn-export-png', 'repo-btn-export-copy', 'repo-btn-export-md'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = busy;
+      });
+    },
+
+    // ────────────────────────────────────────────────────────────
+    // 公开方法
+    // ────────────────────────────────────────────────────────────
+
+    /** 预览弹窗 + 导出 PNG */
+    async exportPNG() {
+      if (RepoState.orderedIds.length === 0) {
+        showToast('⚠️ 请先选取至少一条消息');
+        return;
+      }
+
+      this._setBusy(true);
+      this._setProgress('正在加载渲染引擎…');
+
+      this.loadHtml2Canvas(async () => {
+        try {
+          const canvases = await this.generateCanvases();
+          const merged   = this._mergeCanvases(canvases);
+          this._setProgress('');
+          this._setBusy(false);
+          this._showPreviewModal(merged);
+        } catch (err) {
+          console.error('[RepoHelper] 导出失败', err);
+          showToast('⚠️ 导出失败：' + err.message);
+          this._setProgress('');
+          this._setBusy(false);
+        }
+      });
+    },
+
+    /** 直接复制到剪贴板（不弹预览） */
+    async copyToClipboard() {
+      if (RepoState.orderedIds.length === 0) {
+        showToast('⚠️ 请先选取至少一条消息');
+        return;
+      }
+      if (!navigator.clipboard?.write) {
+        showToast('⚠️ 当前浏览器不支持剪贴板写入');
+        return;
+      }
+
+      this._setBusy(true);
+      this._setProgress('正在生成图片…');
+
+      this.loadHtml2Canvas(async () => {
+        try {
+          const canvases = await this.generateCanvases();
+          const merged   = this._mergeCanvases(canvases);
+          this._setProgress('正在写入剪贴板…');
+
+          merged.toBlob(async blob => {
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({ 'image/png': blob })
+              ]);
+              showToast('✅ 已复制到剪贴板');
+            } catch (e) {
+              showToast('⚠️ 剪贴板写入失败：' + e.message);
+            }
+            this._setProgress('');
+            this._setBusy(false);
+          }, 'image/png');
+        } catch (err) {
+          console.error('[RepoHelper] 复制失败', err);
+          showToast('⚠️ 生成失败：' + err.message);
+          this._setProgress('');
+          this._setBusy(false);
+        }
+      });
+    },
+
+    /** 预览弹窗 */
+    _showPreviewModal(canvas) {
+      // 移除旧弹窗
+      document.getElementById('repo-preview-overlay')?.remove();
+
+      const dataUrl = canvas.toDataURL('image/png');
+
+      const overlay = document.createElement('div');
+      overlay.id        = 'repo-preview-overlay';
+      overlay.className = 'repo-preview-overlay';
+      overlay.innerHTML = `
+        <div class="repo-preview-modal">
+          <div class="repo-preview-header">
+            <span class="repo-preview-title">🖼 导出预览</span>
+            <button class="repo-preview-close" id="repo-preview-close">×</button>
+          </div>
+          <div class="repo-preview-scroll">
+            <img class="repo-preview-img" src="${dataUrl}" alt="导出预览">
+          </div>
+          <div class="repo-preview-footer">
+            <button class="repo-export-btn-png" id="repo-preview-btn-download">⬇ 下载 PNG</button>
+            <button class="repo-export-btn-copy" id="repo-preview-btn-copy">📋 复制图片</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+
+      // 关闭
+      const close = () => overlay.remove();
+      document.getElementById('repo-preview-close')
+        ?.addEventListener('click', close);
+      overlay.addEventListener('click', e => {
+        if (e.target === overlay) close();
+      });
+
+      // 下载
+      document.getElementById('repo-preview-btn-download')
+        ?.addEventListener('click', () => {
+          const filename = `repo-export-${Date.now()}.png`;
+          this._downloadCanvas(canvas, filename);
+          showToast('✅ 已开始下载');
+        });
+
+      // 复制
+      document.getElementById('repo-preview-btn-copy')
+        ?.addEventListener('click', async () => {
+          if (!navigator.clipboard?.write) {
+            showToast('⚠️ 当前浏览器不支持剪贴板写入');
+            return;
+          }
+          canvas.toBlob(async blob => {
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({ 'image/png': blob })
+              ]);
+              showToast('✅ 已复制到剪贴板');
+            } catch (e) {
+              showToast('⚠️ 剪贴板写入失败：' + e.message);
+            }
+          }, 'image/png');
+        });
+    },
+  };
+
+  /* ============================================================
+     15. Markdown 导出
+     ============================================================ */
+
+  const MarkdownExporter = {
+
+    /** 生成 Markdown 字符串 */
+    generate() {
+      const ids = RepoState.orderedIds;
+      if (ids.length === 0) return '';
+
+      const themeInfo = THEMES.find(t => t.id === RepoState.currentTheme) || THEMES[0];
+      const lines = [];
+
+      // 文件头
+      lines.push(`# ${window.name2 || 'Chat'} 对话记录`);
+      lines.push('');
+      lines.push(`> 主题：${themeInfo.emoji} ${themeInfo.name}　|　导出时间：${new Date().toLocaleString('zh-CN')}`);
+      lines.push('');
+      lines.push('---');
+      lines.push('');
+
+      ids.forEach(id => {
+        const item = RepoState.selectedMessages.get(id);
+        if (!item) return;
+
+        // 获取完整文本
+        let fullText = '';
+        if (item.element) {
+          const textEl = item.element.querySelector('.mes_text');
+          fullText = textEl ? (textEl.innerText || textEl.textContent || '') : item.text;
+        } else {
+          fullText = item.text || '';
+        }
+
+        // 应用打码（纯文本版，去掉 HTML 标签）
+        const censoredText = this._applyTextCensor(fullText);
+
+        // 发送者标题
+        const role = item.isUser ? '👤' : '🤖';
+        lines.push(`### ${role} ${item.sender}　<sub>#${id}</sub>`);
+        lines.push('');
+
+        // 消息正文（保留换行）
+        const bodyLines = censoredText.split('\n').map(l => l.trimEnd());
+        lines.push(...bodyLines);
+        lines.push('');
+
+        // 标注
+        const anns = RepoState.annotations.get(id) || [];
+        if (anns.length > 0) {
+          anns.forEach(a => {
+            const icon = a.type === 'highlight' ? '🟡' : '⭕';
+            lines.push(`> ${icon} ${a.comment}`);
+          });
+          lines.push('');
+        }
+
+        lines.push('---');
+        lines.push('');
+      });
+
+      // 全局评论
+      if (RepoState.globalComment) {
+        lines.push('## ✍️ 评论');
+        lines.push('');
+        lines.push(RepoState.globalComment);
+        lines.push('');
+      }
+
+      return lines.join('\n');
+    },
+
+    /**
+     * 纯文本打码（不产生 HTML，用于 Markdown 导出）
+     */
+    _applyTextCensor(text) {
+      if (!text) return '';
+
+      const words = [...RepoState.censorWords.map(w => w.word)];
+      if (RepoState.autoName1 && window.name1) words.push(window.name1);
+
+      const uniqueWords = [...new Set(words.filter(Boolean))]
+        .sort((a, b) => b.length - a.length);
+
+      if (uniqueWords.length === 0) return text;
+
+      const pattern = uniqueWords
+        .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+      const regex = new RegExp(`(${pattern})`, 'g');
+
+      return text.replace(regex, match => {
+        switch (RepoState.censorStyle) {
+          case 'block':   return '█'.repeat(match.length);
+          case 'star':    return '*'.repeat(match.length);
+          case 'blur':    return '[已打码]';
+          case 'replace': return RepoState.censorReplaceWord || '***';
+          default:        return match;
+        }
+      });
+    },
+
+    /** 下载为 .md 文件 */
+    download() {
+      if (RepoState.orderedIds.length === 0) {
+        showToast('⚠️ 请先选取至少一条消息');
+        return;
+      }
+      const md       = this.generate();
+      const blob     = new Blob([md], { type: 'text/markdown;charset=utf-8' });
+      const url      = URL.createObjectURL(blob);
+      const link     = document.createElement('a');
+      link.href      = url;
+      link.download  = `repo-export-${Date.now()}.md`;
+      link.click();
+      URL.revokeObjectURL(url);
+      showToast('✅ Markdown 已下载');
+    },
+  };
+
+  /* ============================================================
+     END 14 & 15. 导出引擎 & Markdown 导出
+     ============================================================ */
+
 
   /* ============================================================
      6. 已选列表渲染 & 拖拽排序
@@ -1085,12 +1675,47 @@ function buildPanelHTML() {
         if (counter) counter.textContent = RepoState.globalComment.length;
       });
 
-    // ── 段落标注列表（事件委托，初始绑定） ──
+        // ── 段落标注列表（事件委托，初始绑定） ──
     const annList = document.getElementById('repo-annotation-list');
     if (annList) {
       AnnotationManager._bindAnnotationEvents(annList);
     }
+
+    // ════════════════════════════════════════════════════════════
+    // Phase 3 — 导出事件
+    // ════════════════════════════════════════════════════════════
+
+    // ── 切换到导出 Tab 时同步状态摘要 ──
+    // （已在 Tab 切换逻辑里统一处理，这里补充导出 Tab 专属刷新）
+    document.querySelectorAll('#repo-helper-panel .repo-tab-btn').forEach(btn => {
+      if (btn.dataset.tab === 'export') {
+        btn.addEventListener('click', () => {
+          const themeInfo = THEMES.find(t => t.id === RepoState.currentTheme);
+          const nameEl = document.getElementById('repo-export-theme-name');
+          if (nameEl && themeInfo) nameEl.textContent = `${themeInfo.emoji} ${themeInfo.name}`;
+        });
+      }
+    });
+
+    // ── 预览 & 导出 PNG ──
+    document.getElementById('repo-btn-export-png')
+      ?.addEventListener('click', () => {
+        ExportEngine.exportPNG();
+      });
+
+    // ── 复制到剪贴板 ──
+    document.getElementById('repo-btn-export-copy')
+      ?.addEventListener('click', () => {
+        ExportEngine.copyToClipboard();
+      });
+
+    // ── 导出 Markdown ──
+    document.getElementById('repo-btn-export-md')
+      ?.addEventListener('click', () => {
+        MarkdownExporter.download();
+      });
   }
+
 
   /* ============================================================
      END 9. 面板事件绑定

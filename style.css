@@ -413,4 +413,334 @@
   opacity: 1;
   transform: translateX(-50%) translateY(0);
 }
+/* ============================================================
+   Phase 2 — 打码系统 & 评论系统样式
+   ============================================================ */
+
+/* ── 通用区块标题 ── */
+.repo-censor-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.repo-censor-section:last-child {
+  border-bottom: none;
+}
+.repo-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  opacity: 0.7;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+/* ── 开关行 ── */
+.repo-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  user-select: none;
+}
+.repo-toggle-row input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--repo-accent, #f472b6);
+  cursor: pointer;
+}
+
+/* ── 打码样式网格 ── */
+.repo-censor-style-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.repo-style-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font-size: 10px;
+  transition: border-color 0.2s, background 0.2s;
+  background: rgba(255, 255, 255, 0.03);
+  user-select: none;
+}
+.repo-style-option input[type="radio"] {
+  display: none;
+}
+.repo-style-option:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.07);
+}
+.repo-style-option.active {
+  border-color: var(--repo-accent, #f472b6);
+  background: rgba(244, 114, 182, 0.12);
+}
+.repo-style-preview {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+}
+.repo-style-block  { color: #1a1a1a; background: #1a1a1a; border-radius: 2px; padding: 0 2px; letter-spacing: -1px; }
+.repo-style-star   { color: #f59e0b; letter-spacing: 1px; }
+.repo-style-blur   { filter: blur(3px); color: #a78bfa; }
+.repo-style-replace{ color: #34d399; font-size: 10px; }
+
+/* ── 替换词输入行 ── */
+.repo-replace-word-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-top: 4px;
+}
+.repo-replace-word-row.hidden {
+  display: none;
+}
+
+/* ── 通用文本输入框 ── */
+.repo-text-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+  transition: border-color 0.2s;
+  min-width: 0;
+}
+.repo-text-input:focus {
+  border-color: var(--repo-accent, #f472b6);
+  background: rgba(255, 255, 255, 0.09);
+}
+.repo-text-input::placeholder {
+  opacity: 0.35;
+}
+
+/* ── 添加打码词行 ── */
+.repo-censor-add-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+/* ── 打码词标签列表 ── */
+.repo-censor-word-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 28px;
+}
+.repo-censor-word-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(244, 114, 182, 0.15);
+  border: 1px solid rgba(244, 114, 182, 0.3);
+  border-radius: 20px;
+  padding: 2px 8px 2px 10px;
+  font-size: 11px;
+  max-width: 160px;
+}
+.repo-censor-word-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repo-censor-word-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.repo-censor-word-remove:hover {
+  opacity: 1;
+  color: #f87171;
+}
+
+/* ── 打码预览 ── */
+.repo-censor-preview-input-row {
+  margin-bottom: 6px;
+}
+.repo-censor-preview-output {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 36px;
+  word-break: break-all;
+}
+
+/* 打码样式渲染类（预览输出中使用） */
+.repo-censor-block {
+  background: #1a1a1a;
+  color: #1a1a1a;
+  border-radius: 2px;
+  user-select: none;
+  letter-spacing: -1px;
+}
+.repo-censor-star {
+  color: #f59e0b;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.repo-censor-blur {
+  filter: blur(4px);
+  user-select: none;
+}
+.repo-censor-replace {
+  color: #34d399;
+  font-weight: 600;
+}
+
+/* ── 全局评论 ── */
+.repo-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px 10px;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+.repo-textarea:focus {
+  border-color: var(--repo-accent, #f472b6);
+  background: rgba(255, 255, 255, 0.09);
+}
+.repo-textarea::placeholder {
+  opacity: 0.35;
+}
+.repo-comment-char-count {
+  text-align: right;
+  font-size: 10px;
+  opacity: 0.4;
+  margin-top: 4px;
+}
+
+/* ── 段落标注列表 ── */
+.repo-ann-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+}
+.repo-ann-item:last-child {
+  margin-bottom: 0;
+}
+.repo-ann-item-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.repo-ann-floor {
+  font-size: 10px;
+  opacity: 0.5;
+  font-weight: 600;
+}
+.repo-ann-sender {
+  font-size: 11px;
+  color: #a78bfa;
+  font-weight: 600;
+}
+.repo-ann-sender.is-user {
+  color: #34d399;
+}
+.repo-ann-preview {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-bottom: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.repo-ann-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.repo-ann-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid transparent;
+}
+.repo-ann-type-highlight {
+  border-left-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+}
+.repo-ann-type-circle {
+  border-left-color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+}
+.repo-ann-type-icon {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+.repo-ann-comment {
+  flex: 1;
+  word-break: break-all;
+  line-height: 1.4;
+}
+.repo-ann-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.4;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+.repo-ann-remove:hover {
+  opacity: 1;
+  color: #f87171;
+}
+.repo-ann-add-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.repo-ann-add-row .repo-btn {
+  padding: 4px 7px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   END Phase 2 样式
+   ============================================================ */
 

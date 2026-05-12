@@ -20,21 +20,43 @@
   const STORAGE_KEY = 'repo_helper_state';
 
   /* ============================================================
-     1. 全局状态
-     ============================================================ */
+   1. 全局状态
+   ============================================================ */
 
-  /**
-   * RepoState — 插件运行时状态
-   * selectedMessages: Map<messageId, { id, floor, sender, isUser, text, element }>
-   * orderedIds: string[]  — 维护拖拽后的顺序
-   * currentTheme: string
-   */
-  const RepoState = {
-    selectedMessages : new Map(),
-    orderedIds       : [],
-    currentTheme     : 'sakura',
-    dragSrcId        : null,   // 拖拽排序用
-  };
+/**
+ * RepoState — 插件运行时状态
+ * selectedMessages: Map<messageId, { id, floor, sender, isUser, text, element }>
+ * orderedIds: string[]  — 维护拖拽后的顺序
+ * currentTheme: string
+ * --- Phase 2 新增 ---
+ * censorWords: Array<{ id, word, replacement }> — 自定义打码词列表
+ * censorStyle: 'block' | 'star' | 'blur' | 'replace' — 打码样式
+ * censorReplaceWord: string — 自定义替换词（style=replace时使用）
+ * autoName1: boolean — 是否自动打码 name1
+ * globalComment: string — 全局评论文字
+ * annotations: Map<messageId, Array<{ id, type, comment }>> — 段落标注
+ */
+const RepoState = {
+  selectedMessages : new Map(),
+  orderedIds       : [],
+  currentTheme     : 'sakura',
+  dragSrcId        : null,
+
+  // Phase 2 — 打码系统
+  censorWords      : [],
+  censorStyle      : 'block',
+  censorReplaceWord: '***',
+  autoName1        : true,
+
+  // Phase 2 — 评论系统
+  globalComment    : '',
+  annotations      : new Map(),
+};
+
+/* ============================================================
+   END 1. 全局状态
+   ============================================================ */
+
 
   /* ============================================================
      2. 工具函数
@@ -186,17 +208,17 @@
   };
 
   /* ============================================================
-     4. 面板 HTML 模板
-     ============================================================ */
+   4. 面板 HTML 模板
+   ============================================================ */
 
-  function buildPanelHTML() {
-    return `
+function buildPanelHTML() {
+  return `
 <div id="repo-helper-panel">
 
   <!-- 标题栏 -->
   <div class="repo-panel-header">
     <span class="repo-panel-title">📋 Repo小助手</span>
-    <span style="font-size:11px;opacity:0.4;">v0.1</span>
+    <span style="font-size:11px;opacity:0.4;">v0.2</span>
   </div>
 
   <!-- Tab 导航 -->
@@ -204,6 +226,8 @@
     <button class="repo-tab-btn active" data-tab="select">
       选取 <span class="repo-count-badge" id="repo-count-badge">0</span>
     </button>
+    <button class="repo-tab-btn" data-tab="censor">打码</button>
+    <button class="repo-tab-btn" data-tab="comment">评论</button>
     <button class="repo-tab-btn" data-tab="theme">主题</button>
     <button class="repo-tab-btn" data-tab="export">导出</button>
   </div>
@@ -244,6 +268,109 @@
 
   </div>
 
+  <!-- ── Tab: 打码 ── -->
+  <div class="repo-tab-content" data-tab-content="censor">
+    <div class="repo-scroll-area">
+
+      <!-- 自动打码 name1 -->
+      <div class="repo-censor-section">
+        <div class="repo-section-title">🔒 自动打码</div>
+        <label class="repo-toggle-row">
+          <input type="checkbox" id="repo-censor-auto-name1" ${RepoState.autoName1 ? 'checked' : ''}>
+          <span>自动打码用户名（name1）</span>
+        </label>
+      </div>
+
+      <!-- 打码样式 -->
+      <div class="repo-censor-section">
+        <div class="repo-section-title">🎨 打码样式</div>
+        <div class="repo-censor-style-grid">
+          <label class="repo-style-option ${RepoState.censorStyle === 'block' ? 'active' : ''}" data-style="block">
+            <input type="radio" name="repo-censor-style" value="block" ${RepoState.censorStyle === 'block' ? 'checked' : ''}>
+            <span class="repo-style-preview repo-style-block">■■■</span>
+            <span>黑块</span>
+          </label>
+          <label class="repo-style-option ${RepoState.censorStyle === 'star' ? 'active' : ''}" data-style="star">
+            <input type="radio" name="repo-censor-style" value="star" ${RepoState.censorStyle === 'star' ? 'checked' : ''}>
+            <span class="repo-style-preview repo-style-star">***</span>
+            <span>星号</span>
+          </label>
+          <label class="repo-style-option ${RepoState.censorStyle === 'blur' ? 'active' : ''}" data-style="blur">
+            <input type="radio" name="repo-censor-style" value="blur" ${RepoState.censorStyle === 'blur' ? 'checked' : ''}>
+            <span class="repo-style-preview repo-style-blur">模糊</span>
+            <span>模糊</span>
+          </label>
+          <label class="repo-style-option ${RepoState.censorStyle === 'replace' ? 'active' : ''}" data-style="replace">
+            <input type="radio" name="repo-censor-style" value="replace" ${RepoState.censorStyle === 'replace' ? 'checked' : ''}>
+            <span class="repo-style-preview repo-style-replace">自定义</span>
+            <span>替换词</span>
+          </label>
+        </div>
+        <!-- 自定义替换词输入（仅 replace 模式显示） -->
+        <div class="repo-replace-word-row ${RepoState.censorStyle === 'replace' ? '' : 'hidden'}" id="repo-replace-word-row">
+          <label>替换为：</label>
+          <input type="text" id="repo-censor-replace-word" class="repo-text-input"
+                 value="${escapeHtml(RepoState.censorReplaceWord)}" placeholder="输入替换词">
+        </div>
+      </div>
+
+      <!-- 自定义打码词 -->
+      <div class="repo-censor-section">
+        <div class="repo-section-title">📝 自定义打码词</div>
+        <div class="repo-censor-add-row">
+          <input type="text" id="repo-censor-word-input" class="repo-text-input" placeholder="输入要打码的词">
+          <button class="repo-btn-primary" id="repo-btn-censor-add">添加</button>
+        </div>
+        <div class="repo-censor-word-list" id="repo-censor-word-list">
+          ${buildCensorWordListHTML()}
+        </div>
+      </div>
+
+      <!-- 实时预览 -->
+      <div class="repo-censor-section">
+        <div class="repo-section-title">👁 打码预览</div>
+        <div class="repo-censor-preview-input-row">
+          <input type="text" id="repo-censor-preview-input" class="repo-text-input"
+                 placeholder="输入测试文本，查看打码效果">
+        </div>
+        <div class="repo-censor-preview-output" id="repo-censor-preview-output">
+          <span style="opacity:0.4;font-style:italic;">预览将在此显示</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── Tab: 评论 ── -->
+  <div class="repo-tab-content" data-tab-content="comment">
+    <div class="repo-scroll-area">
+
+      <!-- 全局评论 -->
+      <div class="repo-censor-section">
+        <div class="repo-section-title">💬 全局评论</div>
+        <div style="font-size:11px;opacity:0.5;margin-bottom:6px;">将显示在导出图片底部</div>
+        <textarea id="repo-global-comment" class="repo-textarea"
+                  placeholder="在这里写下你的评论、感想或说明..."
+                  rows="4">${escapeHtml(RepoState.globalComment)}</textarea>
+        <div class="repo-comment-char-count">
+          <span id="repo-comment-char-count">${RepoState.globalComment.length}</span> / 500 字
+        </div>
+      </div>
+
+      <!-- 段落标注 -->
+      <div class="repo-censor-section">
+        <div class="repo-section-title">🏷 段落标注</div>
+        <div style="font-size:11px;opacity:0.5;margin-bottom:8px;">
+          为已选楼层添加标注，导出时显示在对应消息旁
+        </div>
+        <div class="repo-annotation-list" id="repo-annotation-list">
+          ${buildAnnotationListHTML()}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
   <!-- ── Tab: 主题 ── -->
   <div class="repo-tab-content" data-tab-content="theme">
     <div class="repo-scroll-area">
@@ -265,8 +392,13 @@
   </div>
 
 </div>
-    `.trim();
-  }
+  `.trim();
+}
+
+/* ============================================================
+   END 4. 面板 HTML 模板
+   ============================================================ */
+
 
   /* ============================================================
      5. 主题数据 & 主题卡片
@@ -294,6 +426,261 @@
       </div>
     `).join('');
   }
+
+    /* ============================================================
+     12. 打码系统
+     ============================================================ */
+
+  const CensorManager = {
+
+    /** 生成唯一 id */
+    _uid() {
+      return 'cw_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    },
+
+    /** 添加打码词 */
+    addWord(word) {
+      word = word.trim();
+      if (!word) { showToast('⚠️ 请输入打码词'); return; }
+      if (word.length > 50) { showToast('⚠️ 打码词不能超过50字'); return; }
+      // 防止重复
+      if (RepoState.censorWords.some(w => w.word === word)) {
+        showToast('⚠️ 该词已在列表中');
+        return;
+      }
+      RepoState.censorWords.push({ id: this._uid(), word });
+      this.renderWordList();
+      showToast(`已添加打码词：${word}`);
+    },
+
+    /** 删除打码词 */
+    removeWord(id) {
+      RepoState.censorWords = RepoState.censorWords.filter(w => w.id !== id);
+      this.renderWordList();
+    },
+
+    /** 重新渲染打码词列表 */
+    renderWordList() {
+      const el = document.getElementById('repo-censor-word-list');
+      if (el) el.innerHTML = buildCensorWordListHTML();
+      // 重新绑定删除按钮
+      el?.querySelectorAll('.repo-censor-word-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          CensorManager.removeWord(btn.dataset.wordId);
+        });
+      });
+    },
+
+    /**
+     * 对文本执行打码处理
+     * @param {string} text 原始文本
+     * @returns {string} 打码后的 HTML 字符串（用于预览）
+     */
+    applyToText(text) {
+      if (!text) return '';
+
+      // 收集所有需要打码的词
+      const words = [...RepoState.censorWords.map(w => w.word)];
+      if (RepoState.autoName1 && window.name1) {
+        words.push(window.name1);
+      }
+
+      // 去重、过滤空值、按长度降序（长词优先匹配）
+      const uniqueWords = [...new Set(words.filter(Boolean))]
+        .sort((a, b) => b.length - a.length);
+
+      if (uniqueWords.length === 0) return escapeHtml(text);
+
+      // 构建正则（转义特殊字符）
+      const pattern = uniqueWords
+        .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+      const regex = new RegExp(`(${pattern})`, 'g');
+
+      const style = RepoState.censorStyle;
+
+      return escapeHtml(text).replace(
+        // 注意：escapeHtml 后再匹配，词中若含 HTML 特殊字符需同步转义
+        new RegExp(
+          `(${uniqueWords
+            .map(w => escapeHtml(w).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+            .join('|')})`,
+          'g'
+        ),
+        (match) => {
+          switch (style) {
+            case 'block':
+              return `<span class="repo-censor-block" title="已打码">█`.repeat(match.length) + `</span>`;
+            case 'star':
+              return `<span class="repo-censor-star">` + '*'.repeat(match.length) + `</span>`;
+            case 'blur':
+              return `<span class="repo-censor-blur">${match}</span>`;
+            case 'replace':
+              return `<span class="repo-censor-replace">${escapeHtml(RepoState.censorReplaceWord || '***')}</span>`;
+            default:
+              return match;
+          }
+        }
+      );
+    },
+
+    /** 更新实时预览 */
+    updatePreview() {
+      const input  = document.getElementById('repo-censor-preview-input');
+      const output = document.getElementById('repo-censor-preview-output');
+      if (!input || !output) return;
+      const raw = input.value;
+      if (!raw.trim()) {
+        output.innerHTML = '<span style="opacity:0.4;font-style:italic;">预览将在此显示</span>';
+        return;
+      }
+      output.innerHTML = this.applyToText(raw);
+    },
+  };
+
+  /** 构建打码词列表 HTML（供 buildPanelHTML 和 renderWordList 复用） */
+  function buildCensorWordListHTML() {
+    if (RepoState.censorWords.length === 0) {
+      return '<div class="repo-empty-hint" style="padding:10px 0;font-size:11px;">暂无自定义打码词</div>';
+    }
+    return RepoState.censorWords.map(w => `
+      <div class="repo-censor-word-tag">
+        <span class="repo-censor-word-text">${escapeHtml(w.word)}</span>
+        <button class="repo-censor-word-remove" data-word-id="${w.id}" title="删除">×</button>
+      </div>
+    `).join('');
+  }
+
+  /* ============================================================
+     END 12. 打码系统
+     ============================================================ */
+
+  /* ============================================================
+     13. 段落标注系统
+     ============================================================ */
+
+  const AnnotationManager = {
+
+    _uid() {
+      return 'ann_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    },
+
+    /** 为某条消息添加标注 */
+    addAnnotation(messageId, type, comment) {
+      comment = comment.trim();
+      if (!comment) { showToast('⚠️ 请输入标注内容'); return false; }
+      if (comment.length > 200) { showToast('⚠️ 标注内容不能超过200字'); return false; }
+
+      if (!RepoState.annotations.has(messageId)) {
+        RepoState.annotations.set(messageId, []);
+      }
+      RepoState.annotations.get(messageId).push({
+        id: this._uid(),
+        type,    // 'highlight' | 'circle'
+        comment,
+      });
+      this.renderAnnotationList();
+      return true;
+    },
+
+    /** 删除标注 */
+    removeAnnotation(messageId, annotationId) {
+      const list = RepoState.annotations.get(messageId);
+      if (!list) return;
+      const filtered = list.filter(a => a.id !== annotationId);
+      if (filtered.length === 0) {
+        RepoState.annotations.delete(messageId);
+      } else {
+        RepoState.annotations.set(messageId, filtered);
+      }
+      this.renderAnnotationList();
+    },
+
+    /** 重新渲染标注列表 */
+    renderAnnotationList() {
+      const el = document.getElementById('repo-annotation-list');
+      if (el) {
+        el.innerHTML = buildAnnotationListHTML();
+        this._bindAnnotationEvents(el);
+      }
+    },
+
+    /** 绑定标注列表内的事件 */
+    _bindAnnotationEvents(container) {
+      // 删除按钮
+      container.querySelectorAll('.repo-ann-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+          AnnotationManager.removeAnnotation(btn.dataset.msgId, btn.dataset.annId);
+        });
+      });
+
+      // 添加标注按钮
+      container.querySelectorAll('.repo-ann-add-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const msgId  = btn.dataset.msgId;
+          const type   = btn.dataset.annType;
+          const input  = container.querySelector(`.repo-ann-input[data-msg-id="${msgId}"]`);
+          if (!input) return;
+          const ok = AnnotationManager.addAnnotation(msgId, type, input.value);
+          if (ok) input.value = '';
+        });
+      });
+
+      // 输入框回车
+      container.querySelectorAll('.repo-ann-input').forEach(input => {
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            const msgId = input.dataset.msgId;
+            const btn   = container.querySelector(`.repo-ann-add-btn[data-msg-id="${msgId}"][data-ann-type="highlight"]`);
+            btn?.click();
+          }
+        });
+      });
+    },
+  };
+
+  /** 构建标注列表 HTML */
+  function buildAnnotationListHTML() {
+    if (RepoState.orderedIds.length === 0) {
+      return '<div class="repo-empty-hint" style="padding:10px 0;font-size:11px;">请先在「选取」Tab 选择楼层</div>';
+    }
+
+    return RepoState.orderedIds.map(id => {
+      const item = RepoState.selectedMessages.get(id);
+      if (!item) return '';
+
+      const anns = RepoState.annotations.get(id) || [];
+      const annHTML = anns.map(a => `
+        <div class="repo-ann-tag repo-ann-type-${a.type}">
+          <span class="repo-ann-type-icon">${a.type === 'highlight' ? '🟡' : '⭕'}</span>
+          <span class="repo-ann-comment">${escapeHtml(a.comment)}</span>
+          <button class="repo-ann-remove" data-msg-id="${id}" data-ann-id="${a.id}" title="删除">×</button>
+        </div>
+      `).join('');
+
+      return `
+        <div class="repo-ann-item">
+          <div class="repo-ann-item-header">
+            <span class="repo-ann-floor">第 ${escapeHtml(id)} 楼</span>
+            <span class="repo-ann-sender ${item.isUser ? 'is-user' : ''}">${escapeHtml(item.sender)}</span>
+          </div>
+          <div class="repo-ann-preview">${escapeHtml(item.text || '（无文本）')}</div>
+          ${annHTML ? `<div class="repo-ann-tags">${annHTML}</div>` : ''}
+          <div class="repo-ann-add-row">
+            <input type="text" class="repo-text-input repo-ann-input" data-msg-id="${id}"
+                   placeholder="添加标注内容…" maxlength="200">
+            <button class="repo-btn repo-ann-add-btn" data-msg-id="${id}" data-ann-type="highlight" title="高亮标注">🟡</button>
+            <button class="repo-btn repo-ann-add-btn" data-msg-id="${id}" data-ann-type="circle" title="圈起标注">⭕</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /* ============================================================
+     END 13. 段落标注系统
+     ============================================================ */
 
   /* ============================================================
      6. 已选列表渲染 & 拖拽排序
@@ -492,6 +879,9 @@
   /* ============================================================
      9. 面板事件绑定
      ============================================================ */
+       /* ============================================================
+     9. 面板事件绑定
+     ============================================================ */
 
   function bindPanelEvents() {
 
@@ -505,6 +895,11 @@
 
         document.querySelectorAll('#repo-helper-panel .repo-tab-content')
           .forEach(c => c.classList.toggle('active', c.dataset.tabContent === tab));
+
+        // 切换到评论 Tab 时刷新标注列表（选取可能有变化）
+        if (tab === 'comment') {
+          AnnotationManager.renderAnnotationList();
+        }
       });
     });
 
@@ -583,7 +978,6 @@
           showToast('⚠️ 请先选取至少一条消息');
           return;
         }
-        // 切换到导出 Tab
         document.querySelectorAll('#repo-helper-panel .repo-tab-btn')
           .forEach(b => b.classList.toggle('active', b.dataset.tab === 'export'));
         document.querySelectorAll('#repo-helper-panel .repo-tab-content')
@@ -597,16 +991,113 @@
         if (!card) return;
         const themeId = card.dataset.themeId;
         if (!themeId) return;
-
         RepoState.currentTheme = themeId;
-
         document.querySelectorAll('.repo-theme-card')
           .forEach(c => c.classList.toggle('active', c.dataset.themeId === themeId));
-
         showToast(`已切换主题：${THEMES.find(t => t.id === themeId)?.name ?? themeId}`);
       });
+
+    // ════════════════════════════════════════════════════════════
+    // Phase 2 — 打码系统事件
+    // ════════════════════════════════════════════════════════════
+
+    // ── 自动打码 name1 开关 ──
+    document.getElementById('repo-censor-auto-name1')
+      ?.addEventListener('change', e => {
+        RepoState.autoName1 = e.target.checked;
+        CensorManager.updatePreview();
+        showToast(RepoState.autoName1 ? '已开启自动打码用户名' : '已关闭自动打码用户名');
+      });
+
+    // ── 打码样式切换 ──
+    document.querySelectorAll('input[name="repo-censor-style"]').forEach(radio => {
+      radio.addEventListener('change', e => {
+        RepoState.censorStyle = e.target.value;
+
+                // 更新样式卡片高亮
+        document.querySelectorAll('.repo-style-option').forEach(label => {
+          label.classList.toggle('active', label.dataset.style === e.target.value);
+        });
+
+        // 替换词输入框显示/隐藏
+        const replaceRow = document.getElementById('repo-replace-word-row');
+        if (replaceRow) {
+          replaceRow.classList.toggle('hidden', e.target.value !== 'replace');
+        }
+
+        CensorManager.updatePreview();
+      });
+    });
+
+    // ── 自定义替换词输入 ──
+    document.getElementById('repo-censor-replace-word')
+      ?.addEventListener('input', e => {
+        RepoState.censorReplaceWord = e.target.value;
+        CensorManager.updatePreview();
+      });
+
+    // ── 添加打码词 ──
+    document.getElementById('repo-btn-censor-add')
+      ?.addEventListener('click', () => {
+        const input = document.getElementById('repo-censor-word-input');
+        if (!input) return;
+        CensorManager.addWord(input.value);
+        input.value = '';
+        input.focus();
+      });
+
+    // ── 打码词输入框回车 ──
+    document.getElementById('repo-censor-word-input')
+      ?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          document.getElementById('repo-btn-censor-add')?.click();
+        }
+      });
+
+    // ── 打码词列表删除（事件委托） ──
+    document.getElementById('repo-censor-word-list')
+      ?.addEventListener('click', e => {
+        const btn = e.target.closest('.repo-censor-word-remove');
+        if (!btn) return;
+        CensorManager.removeWord(btn.dataset.wordId);
+      });
+
+    // ── 实时预览输入 ──
+    document.getElementById('repo-censor-preview-input')
+      ?.addEventListener('input', () => {
+        CensorManager.updatePreview();
+      });
+
+    // ════════════════════════════════════════════════════════════
+    // Phase 2 — 评论系统事件
+    // ════════════════════════════════════════════════════════════
+
+    // ── 全局评论输入 ──
+    document.getElementById('repo-global-comment')
+      ?.addEventListener('input', e => {
+        const val = e.target.value;
+        // 限制 500 字
+        if (val.length > 500) {
+          e.target.value = val.slice(0, 500);
+        }
+        RepoState.globalComment = e.target.value;
+        const counter = document.getElementById('repo-comment-char-count');
+        if (counter) counter.textContent = RepoState.globalComment.length;
+      });
+
+    // ── 段落标注列表（事件委托，初始绑定） ──
+    const annList = document.getElementById('repo-annotation-list');
+    if (annList) {
+      AnnotationManager._bindAnnotationEvents(annList);
+    }
   }
 
+  /* ============================================================
+     END 9. 面板事件绑定
+     ============================================================ */
+
+
+  
   /* ============================================================
      10. ST 侧边栏面板挂载
      ============================================================ */
